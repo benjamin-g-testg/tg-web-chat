@@ -1,0 +1,21 @@
+# Entorno virtual
+entorno/
+venv/
+.venv/
+
+# Variables de entorno
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Base de datos SQLite
+db.sqlite3
+
+# Visual Studio Code
+.vscode/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
