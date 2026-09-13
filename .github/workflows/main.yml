@@ -1,0 +1,12 @@
+name: Prueba de Seguridad
+on: [push]
+jobs:
+  validar-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probar inyección de variables
+        env:
+          TEST_HOST: ${{ secrets.DB_HOST }}
+        run: |
+          echo "El sistema intentó leer el host seguro."
+          echo "Valor detectado: $TEST_HOST"
