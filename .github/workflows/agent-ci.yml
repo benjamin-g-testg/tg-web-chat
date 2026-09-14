@@ -52,9 +52,14 @@ jobs:
 
       - name: Extraer Issue Key y Parámetros de Jira
         run: |
-          # 1. Definir Base URL y Email de respaldo seguro
-          JIRA_URL="https://testgroup-team-en3vi88w.atlassian.net"
-          JIRA_EMAIL="testgroup.jira@testgroup.cl"
+          # 1. Leer Base URL y Email desde GitHub Secrets
+          JIRA_URL="${{ secrets.JIRA_BASE_URL }}"
+          JIRA_EMAIL="${{ secrets.JIRA_USER_EMAIL }}"
+
+          if [ -z "$JIRA_URL" ] || [ -z "$JIRA_EMAIL" ]; then
+            echo "ERROR: Faltan los secrets JIRA_BASE_URL o JIRA_USER_EMAIL."
+            exit 1
+          fi
 
           # Exportar variables inmediatamente a GITHUB_ENV para proteger pasos posteriores
           echo "JIRA_URL=$JIRA_URL" >> $GITHUB_ENV
@@ -69,6 +74,7 @@ jobs:
 
           # Eliminar comillas, saltos de linea, retornos de carro, tabulaciones y espacios
           CLEAN_KEY=$(echo "$RAW_KEY" | tr -d '"'\''\r\n\t ' | xargs)
+          CLEAN_KEY=$(echo "$CLEAN_KEY" | sed -E 's/^([A-Za-z][A-Za-z0-9_]*-)0*([0-9]+)$/\1\2/')
 
           echo "Evaluando tarjeta sanitizada: '$CLEAN_KEY'"
           echo "ISSUE_KEY=$CLEAN_KEY" >> $GITHUB_ENV
