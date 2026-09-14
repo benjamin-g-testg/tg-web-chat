@@ -22,6 +22,9 @@ jobs:
 
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
 
     steps:
       - name: Checkout del código
@@ -240,16 +243,16 @@ jobs:
             --form "file=@${{ env.ZIP_NAME }}"
 
       - name: Enviar correo electrónico con el resultado
-        if: always()
+        if: ${{ always() && env.MAIL_SERVER != '' && env.MAIL_USERNAME != '' && env.MAIL_PASSWORD != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
-          server_address: ${{ secrets.MAIL_SERVER }}
+          server_address: ${{ env.MAIL_SERVER }}
           server_port: 465
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
+          username: ${{ env.MAIL_USERNAME }}
+          password: ${{ env.MAIL_PASSWORD }}
           subject: "Resultados Agente Insights - Issue ${{ env.ISSUE_KEY }}"
           to: "leonardo.leon@testgroup.cl"
-          from: "Agente Insights CI <${{ secrets.MAIL_USERNAME }}>"
+          from: "Agente Insights CI <${{ env.MAIL_USERNAME }}>"
           body: |
             Hola Leonardo,
 
