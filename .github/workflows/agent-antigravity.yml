@@ -260,16 +260,17 @@ jobs:
           export INICIO_TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S')
           export MODEL_VERSION="Antigravity CLI"
 
-          INSTRUCCION="Lee y ejecuta el marco metodológico definido en '01_Prompt/Prompt_Insights_3_Fases.txt'.
-          Procesa los datos ubicados en '02_Datos/'.
-          Considera las instrucciones de '03_Info_Complementaria/Analisis_Particulares.txt' y el filtro en '08_Registros_a_Procesar/Registros_a_Procesar.txt'.
-          
-          Genera todos los reportes Word (.docx) requeridos por el prompt en '$OUTPUT_DIR', junto con el archivo 'Modelo_utilizado.txt'.
-          Crea también dentro de '$OUTPUT_DIR' una carpeta 'Entradas' copiando las carpetas 01_Prompt, 02_Datos, 03_Info_Complementaria, 07_Ejemplos (si existe) y 08_Registros_a_Procesar.
+          INSTRUCCION="Ejecuta el análisis QA de forma eficiente dentro del workspace actual.
 
-          Adicionalmente, genera un archivo 'resumen_respuesta.md' en '$OUTPUT_DIR' para el comentario de Jira con:
-          1. CRITERIO DE INTERPRETACIÓN DEL AGENTE: Explicación clara en lenguaje natural de cómo entendió el agente el filtro recibido para evaluar los datos.
-          2. RESUMEN EJECUTIVO: Métricas y hallazgos clave de las 3 fases."
+          1. Lee '01_Prompt/Prompt_Insights_3_Fases.txt' como marco metodológico, pero no lo reproduzcas ni vuelvas a leerlo varias veces.
+          2. Usa exclusivamente el dataset de '02_Datos/' y analiza todos sus registros. Usa Python con pandas u openpyxl para perfilar y calcular métricas de una sola pasada cuando sea posible.
+          3. Lee '03_Info_Complementaria/Analisis_Particulares.txt' y '08_Registros_a_Procesar/Registros_a_Procesar.txt'. La solicitud particular es revisar el estado de los Defectos y el filtro actual es procesar todos los registros.
+          4. No uses las rutas Windows antiguas que aparecen dentro del prompt; la raíz válida es el workspace actual.
+          5. Ejecuta las tres fases obligatorias, con hechos, inferencias, recomendaciones, limitaciones y trazabilidad. Evita exploración innecesaria y no crees archivos técnicos fuera de '$OUTPUT_DIR'.
+          6. Genera en '$OUTPUT_DIR' los cinco DOCX requeridos: REPORTE_FASE_1.docx, REPORTE_FASE_2.docx, REPORTE_FASE_3.docx, REPORTE_FASE_CONCLUSION.docx y REPORTE_Resumen_Ejecutivo.docx, además de 'Modelo_utilizado.txt'.
+          7. Usa '07_Ejemplos' solo como referencia breve de nombres y formato; no leas completos los cinco DOCX ni los uses como fuente de datos.
+          8. Genera '$OUTPUT_DIR/resumen_respuesta.md' con: (a) criterio de interpretación del filtro y (b) resumen ejecutivo con métricas y hallazgos de las tres fases.
+          9. No incluyas la carpeta 'Entradas'; ya fue preparada por el workflow."
 
           set +e
           agy --model gemini-3.8-flash-low --dangerously-skip-permissions --prompt "$INSTRUCCION" 2>&1 | tee "$LOG_FILE"
