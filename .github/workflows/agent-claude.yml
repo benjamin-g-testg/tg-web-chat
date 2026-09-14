@@ -1,0 +1,272 @@
+name: Agente de Consultas Jira (Claude CLI)
+
+on:
+  repository_dispatch:
+    types: [ejecutar_consulta_jira_claude]
+  workflow_dispatch:
+    inputs:
+      test_to_run:
+        description: 'ID del issue en Jira (ej. TA0-16)'
+        required: true
+        default: 'TA0-16'
+      jira_base_url:
+        description: 'Base URL de Jira'
+        required: true
+      jira_email:
+        description: 'Email del usuario de Jira'
+        required: true
+
+jobs:
+  ejecutar-agente-claude:
+    runs-on: ubuntu-latest
+
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js e instalar Claude Code CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Claude Code CLI globalmente
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          claude --version
+
+      - name: Configurar Python e instalar librerías de formato
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install openpyxl pandas requests reportlab python-docx
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Extraer Issue Key y Parámetros de Jira
+        run: |
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            RAW_KEY="${{ github.event.client_payload.issue_key }}"
+            RAW_URL="${{ github.event.client_payload.jira_base_url }}"
+            RAW_EMAIL="${{ github.event.client_payload.jira_email }}"
+          else
+            RAW_KEY="${{ github.event.inputs.test_to_run }}"
+            RAW_URL="${{ github.event.inputs.jira_base_url }}"
+            RAW_EMAIL="${{ github.event.inputs.jira_email }}"
+          fi
+          
+          CLEAN_KEY=$(echo "$RAW_KEY" | tr -d '\r\n\t ' | grep -oE '[A-Za-z0-9]+-[0-9]+' | head -n 1)
+          CLEAN_URL=$(echo "$RAW_URL" | sed -E 's/.*(https?:\/\/[^]" \)]+).*/\1/' | sed 's/\/$//' | tr -d '\r\n\t ')
+          CLEAN_EMAIL=$(echo "$RAW_EMAIL" | tr -d '\r\n\t ')
+
+          echo "ISSUE_KEY=$CLEAN_KEY" >> $GITHUB_ENV
+          echo "JIRA_URL=$CLEAN_URL" >> $GITHUB_ENV
+          echo "JIRA_EMAIL=$CLEAN_EMAIL" >> $GITHUB_ENV
+
+      - name: Reemplazar Archivos de Entrada desde Jira
+        run: |
+          python -c "
+          import os, requests, json, sys, re
+
+          jira_url = (os.environ.get('JIRA_URL') or '').strip().rstrip('/')
+          issue_key = (os.environ.get('ISSUE_KEY') or '').strip()
+          email = (os.environ.get('JIRA_EMAIL') or '').strip()
+          token = (os.environ.get('JIRA_API_TOKEN') or '').strip()
+
+          print(f'Obteniendo información del ticket [{issue_key}]...')
+
+          url = f'{jira_url}/rest/api/3/issue/{issue_key}'
+          auth = (email, token)
+          headers = {'Accept': 'application/json', 'User-Agent': 'GitHubActions-JiraAgent'}
+
+          resp = requests.get(url, auth=auth, headers=headers)
+          if resp.status_code != 200:
+              print(f'ERROR al consultar Jira (Status {resp.status_code}): {resp.text}')
+              sys.exit(1)
+
+          data = resp.json()
+          fields = data.get('fields', {})
+
+          def extract_text(node):
+              if isinstance(node, str):
+                  return node
+              if isinstance(node, dict):
+                  text = node.get('text', '')
+                  for content in node.get('content', []):
+                      text += ' ' + extract_text(content)
+                  return text.strip()
+              if isinstance(node, list):
+                  return ' '.join(extract_text(item) for item in node)
+              return ''
+
+          # 1. Analisis Particulares (customfield_10166)
+          analisis_text = extract_text(fields.get('customfield_10166', '')).strip()
+          if not analisis_text:
+              analisis_text = fields.get('summary', '') or extract_text(fields.get('description', ''))
+          if not analisis_text:
+              analisis_text = 'Quiero un reporte de todos los registros'
+
+          # 2. Filtro Data
+          filtro_text = ''
+          for k, v in fields.items():
+              if k.startswith('customfield_') and k != 'customfield_10166' and v:
+                  ext = extract_text(v).strip()
+                  if ext and not re.search(r'0\|i[0-9a-z]+', ext) and len(ext) > 3:
+                      filtro_text = ext
+                      print(f'Filtro detectado en {k}: {filtro_text}')
+                      break
+
+          if not filtro_text:
+              filtro_text = 'Procesa todos los registros.'
+
+          # Reemplazar archivos físicos existentes
+          os.makedirs('03_Info_Complementaria', exist_ok=True)
+          os.makedirs('08_Registros_a_Procesar', exist_ok=True)
+
+          with open('03_Info_Complementaria/Analisis_Particulares.txt', 'w', encoding='utf-8') as f:
+              f.write(analisis_text)
+
+          with open('08_Registros_a_Procesar/Registros_a_Procesar.txt', 'w', encoding='utf-8') as f:
+              f.write(filtro_text)
+
+          print('Archivos Analisis_Particulares.txt y Registros_a_Procesar.txt reemplazados exitosamente.')
+          "
+        env:
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Extracción de Datos Jira vía Python
+        run: |
+          mkdir -p 02_Datos
+          python scripts/export_jira_data.py
+        env:
+          JIRA_URL: ${{ env.JIRA_URL }}
+          JIRA_EMAIL: ${{ env.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          OUTPUT_DIR: "02_Datos"
+
+      - name: Ejecutar Agente Claude CLI y Empaquetar Entregables
+        run: |
+          TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
+          OUTPUT_DIR="04_Resultado_del_Analisis/${TIMESTAMP}"
+          LOG_FILE="05_Logs/${TIMESTAMP}.log"
+
+          mkdir -p "$OUTPUT_DIR" 05_Logs
+
+          export INICIO_TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S')
+          export MODEL_VERSION="Claude 3.7 Sonnet / Claude Code CLI"
+
+          INSTRUCCION="Lee y ejecuta el marco metodológico definido en '01_Prompt/Prompt_Insights_3_Fases.txt'.
+          Procesa los datos ubicados en '02_Datos/'.
+          Considera las instrucciones de '03_Info_Complementaria/Analisis_Particulares.txt' y el filtro en '08_Registros_a_Procesar/Registros_a_Procesar.txt'.
+          
+          Genera todos los reportes Word (.docx) requeridos por el prompt en '$OUTPUT_DIR', junto con el archivo 'Modelo_utilizado.txt'.
+          Crea también dentro de '$OUTPUT_DIR' una carpeta 'Entradas' copiando las carpetas 01_Prompt, 02_Datos, 03_Info_Complementaria, 07_Ejemplos (si existe) y 08_Registros_a_Procesar.
+
+          Adicionalmente, genera un archivo 'resumen_respuesta.md' en '$OUTPUT_DIR' para el comentario de Jira con:
+          1. CRITERIO DE INTERPRETACIÓN DEL AGENTE: Explicación clara en lenguaje natural de cómo entendió el agente el filtro recibido para evaluar los datos.
+          2. RESUMEN EJECUTIVO: Métricas y hallazgos clave de las 3 fases."
+
+          claude --dangerously-skip-permissions -p "$INSTRUCCION" 2>&1 | tee "$LOG_FILE"
+          RESULTADO=${PIPESTATUS[0]}
+
+          ZIP_NAME="ZIP_Claude_${TIMESTAMP}.zip"
+          
+          (cd "$OUTPUT_DIR" && zip -r "../${ZIP_NAME}" .)
+          mv "04_Resultado_del_Analisis/${ZIP_NAME}" "$OUTPUT_DIR/${ZIP_NAME}"
+
+          echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          exit $RESULTADO
+
+      - name: Publicar Comentario, ZIP de Entregables y Excel Original en Jira
+        if: always()
+        run: |
+          python -c "
+          import os, glob, requests, json, re
+
+          base_url = (os.environ.get('JIRA_URL') or '').strip()
+          issue_key = (os.environ.get('ISSUE_KEY') or '').strip()
+          email = (os.environ.get('JIRA_EMAIL') or '').strip()
+          token = (os.environ.get('JIRA_API_TOKEN') or '').strip()
+          output_dir = os.environ.get('OUTPUT_DIR')
+
+          if not output_dir or not os.path.exists(output_dir):
+              print('No se encontró directorio de salida.')
+              exit(0)
+
+          auth = (email, token)
+
+          # 1. SUBIR ADJUNTOS PRIMERO
+          zip_files = glob.glob(f'{output_dir}/*.zip')
+          excel_datos = glob.glob('02_Datos/*.xlsx') + glob.glob('02_Datos/*.csv')
+          files_to_attach = zip_files + excel_datos
+
+          if files_to_attach:
+              attach_url = f'{base_url}/rest/api/3/issue/{issue_key}/attachments'
+              attach_headers = {'X-Atlassian-Token': 'no-check'}
+              for filepath in files_to_attach:
+                  with open(filepath, 'rb') as f:
+                      files = {'file': (os.path.basename(filepath), f)}
+                      res_att = requests.post(attach_url, auth=auth, headers=attach_headers, files=files)
+                      print(f'Archivo {os.path.basename(filepath)} adjuntado:', res_att.status_code)
+
+          # 2. PUBLICAR COMENTARIO AL FINAL CON FORMATO PROFESIONAL
+          def md_to_adf_nodes(text):
+              nodes = []
+              lines = text.split('\n')
+              i = 0
+              while i < len(lines):
+                  line = lines[i].strip()
+                  if not line:
+                      i += 1
+                      continue
+
+                  if line.startswith('# '):
+                      nodes.append({'type': 'heading', 'attrs': {'level': 1}, 'content': [{'type': 'text', 'text': line[2:].strip()}]})
+                  elif line.startswith('## '):
+                      nodes.append({'type': 'heading', 'attrs': {'level': 2}, 'content': [{'type': 'text', 'text': line[3:].strip()}]})
+                  elif line.startswith('### '):
+                      nodes.append({'type': 'heading', 'attrs': {'level': 3}, 'content': [{'type': 'text', 'text': line[4:].strip()}]})
+                  elif line.startswith('- ') or line.startswith('* '):
+                      items = []
+                      while i < len(lines) and (lines[i].strip().startswith('- ') or lines[i].strip().startswith('* ')):
+                          item_text = lines[i].strip()[2:].replace('**', '')
+                          items.append({
+                              'type': 'listItem',
+                              'content': [{'type': 'paragraph', 'content': [{'type': 'text', 'text': item_text}]}]
+                          })
+                          i += 1
+                      nodes.append({'type': 'bulletList', 'content': items})
+                      continue
+                  else:
+                      clean_text = line.replace('**', '')
+                      nodes.append({'type': 'paragraph', 'content': [{'type': 'text', 'text': clean_text}]})
+                  i += 1
+              return nodes
+
+          md_files = glob.glob(f'{output_dir}/resumen_respuesta.md')
+          if md_files:
+              with open(md_files[0], 'r', encoding='utf-8') as f:
+                  comment_text = f.read()
+
+              header = '# ANALISIS GENERADO POR: AGENTE CLAUDE (Anthropic)\n\n'
+              footer = '\n\n---\nNota: Si los archivos adjuntos (ZIP o Excel procesado) no se visualizan inmediatamente en la seccion superior, actualice la pagina (F5).'
+              
+              comment_text = header + comment_text + footer
+
+              adf_content = md_to_adf_nodes(comment_text)
+              comment_url = f'{base_url}/rest/api/3/issue/{issue_key}/comment'
+              headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+              payload = {'body': {'version': 1, 'type': 'doc', 'content': adf_content}}
+              res = requests.post(comment_url, auth=auth, headers=headers, json=payload)
+              print('Estado publicación comentario:', res.status_code)
+          "
+        env:
+          JIRA_URL: ${{ env.JIRA_URL }}
+          JIRA_EMAIL: ${{ env.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}

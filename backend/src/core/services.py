@@ -1,10 +1,9 @@
 """Business service that runs the deterministic three-stage QA pipeline."""
-from dataclasses import asdict
 from src.integrations.jira_client import fetch_metrics
 
 
 def run_qa_pipeline(message: str, search_filter: str, analysis_requested: str) -> dict[str, object]:
-    metrics = fetch_metrics(search_filter)
+    metrics = fetch_metrics(search_filter, exclude_subtasks=True)
     completion_rate = round(metrics.completed / metrics.total * 100, 2)
     scope = search_filter or "todos los issues del alcance actual"
     request = analysis_requested or message
@@ -15,4 +14,12 @@ def run_qa_pipeline(message: str, search_filter: str, analysis_requested: str) -
         "conclusion": f"El flujo presenta riesgo moderado: {metrics.blocked} de {metrics.total} issues están bloqueados. Priorice su desbloqueo y mida nuevamente el avance al cierre de la semana.",
         "executive_summary": f"Resumen ejecutivo: {metrics.total} issues analizados; {completion_rate}% completado; {metrics.blocked} bloqueados. Acción inmediata: asignar responsables a los bloqueos.",
     }
-    return {"reports": reports, "metrics": {**asdict(metrics), "total_issues": metrics.total, "blocked_issues": metrics.blocked, "completion_rate": completion_rate}}
+    return {
+        "reports": reports,
+        "metrics": {
+            **metrics.to_dict(),
+            "total_issues": metrics.total,
+            "blocked_issues": metrics.blocked,
+            "completion_rate": completion_rate,
+        },
+    }

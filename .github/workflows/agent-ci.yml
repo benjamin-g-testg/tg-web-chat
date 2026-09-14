@@ -1,0 +1,298 @@
+name: Agent CI Pipeline (Codex CLI)
+
+on:
+  repository_dispatch:
+    types: [ejecutar_agente_insights]
+  workflow_dispatch:
+    inputs:
+      test_to_run:
+        description: 'ID del issue en Jira (ej. TA0-1)'
+        required: true
+        default: 'TA0-1'
+      jira_base_url:
+        description: 'Base URL de Jira'
+        required: true
+      jira_email:
+        description: 'Email del usuario de Jira'
+        required: true
+
+jobs:
+  ejecutar-agente:
+    runs-on: ubuntu-latest
+
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js e instalar Codex CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Codex CLI globalmente
+        run: |
+          npm install -g @openai/codex
+          npx codex --version
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Extraer Issue Key y Parámetros de Jira
+        run: |
+          # 1. Definir Base URL y Email de respaldo seguro
+          JIRA_URL="https://testgroup-team-en3vi88w.atlassian.net"
+          JIRA_EMAIL="testgroup.jira@testgroup.cl"
+
+          # Exportar variables inmediatamente a GITHUB_ENV para proteger pasos posteriores
+          echo "JIRA_URL=$JIRA_URL" >> $GITHUB_ENV
+          echo "JIRA_EMAIL=$JIRA_EMAIL" >> $GITHUB_ENV
+
+          # 2. Capturar y sanitizar estrictamente la clave del issue
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            RAW_KEY="${{ github.event.client_payload.issue_key }}"
+          else
+            RAW_KEY="${{ github.event.inputs.test_to_run }}"
+          fi
+
+          # Eliminar comillas, saltos de linea, retornos de carro, tabulaciones y espacios
+          CLEAN_KEY=$(echo "$RAW_KEY" | tr -d '"'\''\r\n\t ' | xargs)
+
+          echo "Evaluando tarjeta sanitizada: '$CLEAN_KEY'"
+          echo "ISSUE_KEY=$CLEAN_KEY" >> $GITHUB_ENV
+
+          # 3. Validar consulta directa a Jira
+          HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+            --request GET \
+            --url "${JIRA_URL}/rest/api/3/issue/${CLEAN_KEY}" \
+            --user "${JIRA_EMAIL}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          echo "Respuesta de Jira HTTP: $HTTP_CODE"
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "ERROR: La tarjeta '$CLEAN_KEY' devolvió HTTP $HTTP_CODE en Jira."
+            exit 1
+          fi
+
+      - name: Obtener campo Analisis_Particulares de Jira
+        run: |
+          echo "Obteniendo contenido del campo Analisis_Particulares para ${{ env.ISSUE_KEY }}..."
+          
+          ISSUE_DATA=$(curl --silent --request GET \
+            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          ANALISIS_TEXT=$(echo "$ISSUE_DATA" | jq -r '.fields.customfield_10166? // empty' | jq -r '.. .text? // empty' | tr '\n' ' ' | xargs)
+
+          if [ -z "$ANALISIS_TEXT" ] || [ "$ANALISIS_TEXT" == "null" ]; then
+            echo "Sin contexto adicional en Analisis_Particulares."
+            ANALISIS_TEXT="Ninguno"
+          fi
+
+          echo "Contexto extraído: $ANALISIS_TEXT"
+          echo "ANALISIS_PARTICULARES=$ANALISIS_TEXT" >> $GITHUB_ENV
+
+          mkdir -p 03_Info_Complementaria
+          echo "$ANALISIS_TEXT" > 03_Info_Complementaria/Analisis_Particulares.txt
+          echo "Archivo 03_Info_Complementaria/Analisis_Particulares.txt actualizado con éxito."
+
+      - name: Obtener campo Filtro Data de Jira
+        run: |
+          echo "Obteniendo contenido del campo Filtro Data (customfield_10167) para ${{ env.ISSUE_KEY }}..."
+          
+          ISSUE_DATA=$(curl --silent --request GET \
+            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          FILTRO_TEXT=$(echo "$ISSUE_DATA" | jq -r '.fields.customfield_10167? // empty' | jq -r '.. .text? // empty' | tr '\n' ' ' | xargs)
+
+          if [ -z "$FILTRO_TEXT" ] || [ "$FILTRO_TEXT" == "null" ]; then
+            echo "Campo Filtro Data vacío. Aplicando valor por defecto."
+            FILTRO_TEXT="Procesa todos los registros."
+          fi
+
+          echo "Filtro Data extraído: $FILTRO_TEXT"
+
+          mkdir -p 08_Registros_a_Procesar
+          echo "$FILTRO_TEXT" > 08_Registros_a_Procesar/Registros_a_Procesar.txt
+          echo "Archivo 08_Registros_a_Procesar/Registros_a_Procesar.txt actualizado con éxito."
+
+      - name: Descargar Excel adjunto desde la tarjeta de Jira
+        run: |
+          echo "Buscando adjuntos en la tarjeta ${{ env.ISSUE_KEY }}..."
+          
+          ISSUE_DATA=$(curl --silent --request GET \
+            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          EXCEL_URL=$(echo "$ISSUE_DATA" | jq -r '.fields.attachment[]? | select(.filename | test("\\.(xlsx|xls)$"; "i")) | .content' | head -n 1)
+          EXCEL_NAME=$(echo "$ISSUE_DATA" | jq -r '.fields.attachment[]? | select(.filename | test("\\.(xlsx|xls)$"; "i")) | .filename' | head -n 1)
+
+          if [ -z "$EXCEL_URL" ] || [ "$EXCEL_URL" == "null" ]; then
+            echo "ERROR: No se encontró ningún archivo Excel (.xlsx o .xls) adjunto en la tarjeta ${{ env.ISSUE_KEY }}."
+            echo "Respuesta de Jira: $ISSUE_DATA"
+            exit 1
+          fi
+
+          echo "Excel encontrado: $EXCEL_NAME"
+          echo "Descargando desde: $EXCEL_URL"
+
+          mkdir -p 02_Datos
+          curl --silent --location --request GET \
+            --url "$EXCEL_URL" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --output "02_Datos/$EXCEL_NAME"
+
+          echo "Archivo 02_Datos/$EXCEL_NAME descargado correctamente."
+
+      - name: Ejecutar Agente Codex CLI
+        run: |
+          TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
+          INICIO_TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S')
+          OUTPUT_DIR="04_Resultado_del_Analisis/${TIMESTAMP}"
+          LOG_FILE="05_Logs/${TIMESTAMP}.log"
+
+          mkdir -p "$OUTPUT_DIR" 05_Logs .codex-harness
+
+          echo "{\"auth_mode\": \"apikey\", \"OPENAI_API_KEY\": \"${OPENAI_API_KEY}\"}" > .codex-harness/auth.json
+          export CODEX_HOME="$(pwd)/.codex-harness"
+
+          echo "========================================"
+          echo "Iniciando Codex..."
+          echo "Hora de Inicio Real: $INICIO_TIMESTAMP"
+          echo "Carpeta de Salida: $OUTPUT_DIR"
+          echo "Log: $LOG_FILE"
+          echo "Contexto particular: ${{ env.ANALISIS_PARTICULARES }}"
+          echo "========================================"
+
+          PROMPT_FILE="01_Prompt/Prompt_Insights_3_Fases.txt"
+
+          if [ -f "$PROMPT_FILE" ]; then
+            INSTRUCCION="IMPORTANTE: Guarda todos los archivos de salida generados dentro de la carpeta: $OUTPUT_DIR. Contexto/Restricciones adicionales entregadas en Jira: '${{ env.ANALISIS_PARTICULARES }}'. $(cat $PROMPT_FILE)"
+            npx codex exec --skip-git-repo-check --sandbox danger-full-access "$INSTRUCCION" 2>&1 | tee "$LOG_FILE"
+            RESULTADO=${PIPESTATUS[0]}
+          else
+            echo "ERROR: No se encontro el archivo $PROMPT_FILE" | tee "$LOG_FILE"
+            RESULTADO=1
+          fi
+
+          echo ""
+          echo "========================================"
+          if [ "$RESULTADO" -eq 0 ]; then
+            echo "Ejecucion finalizada correctamente."
+          else
+            echo "Ejecucion termino con codigo de error: $RESULTADO"
+          fi
+          echo "Log generado: $LOG_FILE"
+          echo "========================================"
+
+          exit $RESULTADO
+
+      - name: Comprimir resultados en ZIP
+        if: always()
+        run: |
+          TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
+          ZIP_NAME="Resultado_${ISSUE_KEY}_${TIMESTAMP}.zip"
+          
+          mkdir -p 04_Resultado_del_Analisis 05_Logs
+          zip -r "$ZIP_NAME" 04_Resultado_del_Analisis 05_Logs
+          
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Eliminar adjuntos .zip previos en Jira
+        if: always()
+        run: |
+          ATTACHMENTS=$(curl --silent --request GET \
+            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          echo "$ATTACHMENTS" | jq -r '.fields.attachment[]? | select(.filename | endswith(".zip")) | .id' | while read -r ATTACHMENT_ID; do
+            if [ -n "$ATTACHMENT_ID" ]; then
+              echo "Eliminando adjunto previo ID: $ATTACHMENT_ID"
+              curl --silent --request DELETE \
+                --url "${{ env.JIRA_URL }}/rest/api/3/attachment/$ATTACHMENT_ID" \
+                --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}"
+            fi
+          done
+
+      - name: Adjuntar ZIP a la tarjeta de Jira
+        if: always()
+        run: |
+          curl --request POST \
+            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}/attachments" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "X-Atlassian-Token: no-check" \
+            --header "Accept: application/json" \
+            --form "file=@${{ env.ZIP_NAME }}"
+
+      - name: Enviar correo electrónico con el resultado
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Resultados Agente Insights - Issue ${{ env.ISSUE_KEY }}"
+          to: "leonardo.leon@testgroup.cl"
+          from: "Agente Insights CI <${{ secrets.MAIL_USERNAME }}>"
+          body: |
+            Hola Leonardo,
+
+            La ejecución del agente Codex para la tarjeta/issue ${{ env.ISSUE_KEY }} ha finalizado.
+            
+            Se adjunta el archivo comprimido (.zip) con los reportes generados y logs de ejecución.
+
+            Saludos,
+            Pipeline Automático de CI.
+          attachments: ${{ env.ZIP_NAME }}
+
+      - name: Mover tarjeta en Jira a 'Termino Exitoso'
+        if: success()
+        run: |
+          TRANSITIONS_DATA=$(curl --silent --request GET \
+            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}/transitions" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          TRANSITION_ID=$(echo "$TRANSITIONS_DATA" | jq -r '.transitions[]? | select(.name=="Termino Exitoso" or .to.name=="Termino Exitoso") | .id' | head -n 1)
+
+          if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
+            curl --request POST \
+              --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}/transitions" \
+              --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              --header "Content-Type: application/json" \
+              --data "{\"transition\": {\"id\": \"$TRANSITION_ID\"}}"
+          fi
+
+      - name: Mover tarjeta en Jira a 'Termino Fallido'
+        if: failure()
+        run: |
+          TRANSITIONS_DATA=$(curl --silent --request GET \
+            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}/transitions" \
+            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            --header "Accept: application/json")
+
+          TRANSITION_ID=$(echo "$TRANSITIONS_DATA" | jq -r '.transitions[]? | select(.name=="Termino Fallido" or .to.name=="Termino Fallido") | .id' | head -n 1)
+
+          if [ -n "$TRANSITION_ID" ] && [ "$TRANSITION_ID" != "null" ]; then
+            curl --request POST \
+              --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}/transitions" \
+              --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+              --header "Content-Type: application/json" \
+              --data "{\"transition\": {\"id\": \"$TRANSITION_ID\"}}"
+          fi

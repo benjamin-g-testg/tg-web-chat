@@ -1,0 +1,58 @@
+name: Orquestador de Agentes (Codex + Claude + Antigravity)
+
+on:
+  repository_dispatch:
+    types: [ejecutar_consulta_jira]
+  workflow_dispatch:
+    inputs:
+      test_to_run:
+        description: 'ID del issue en Jira (ej. TA0-16)'
+        required: true
+        default: 'TA0-16'
+      jira_base_url:
+        description: 'Base URL de Jira'
+        required: true
+      jira_email:
+        description: 'Email del usuario de Jira'
+        required: true
+
+jobs:
+  disparar-agentes:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        agente_event:
+          - ejecutar_consulta_jira_codex
+          - ejecutar_consulta_jira_claude
+          - ejecutar_consulta_jira_antigravity
+      fail-fast: false
+
+    steps:
+      - name: Disparar ejecución del agente vía API de GitHub
+        run: |
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            ISSUE_KEY="${{ github.event.client_payload.issue_key }}"
+            JIRA_URL="${{ github.event.client_payload.jira_base_url }}"
+            JIRA_EMAIL="${{ github.event.client_payload.jira_email }}"
+            REQUEST_ID="${{ github.event.client_payload.request_id }}"
+            USER_QUERY="${{ github.event.client_payload.user_query }}"
+          else
+            ISSUE_KEY="${{ github.event.inputs.test_to_run }}"
+            JIRA_URL="${{ github.event.inputs.jira_base_url }}"
+            JIRA_EMAIL="${{ github.event.inputs.jira_email }}"
+            REQUEST_ID="workflow-${{ github.run_id }}"
+            USER_QUERY="Ejecución manual para $ISSUE_KEY"
+          fi
+
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.GH_PAT_DISPATCH }}" \
+            https://api.github.com/repos/${{ github.repository }}/dispatches \
+            --data "$(jq -n \
+              --arg event "${{ matrix.agente_event }}" \
+              --arg request_id "$REQUEST_ID" \
+              --arg issue_key "$ISSUE_KEY" \
+              --arg user_query "$USER_QUERY" \
+              --arg jira_base_url "$JIRA_URL" \
+              --arg jira_email "$JIRA_EMAIL" \
+              '{event_type: $event, client_payload: {request_id: $request_id, issue_key: $issue_key, user_query: $user_query, jira_base_url: $jira_base_url, jira_email: $jira_email}}')"

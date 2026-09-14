@@ -44,6 +44,31 @@ class AnalysisExecution(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class AnalysisJob(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        PLANNING = "planning", "Planning"
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(Session, related_name="jobs", on_delete=models.CASCADE)
+    request_text = models.TextField()
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.QUEUED)
+    progress = models.PositiveSmallIntegerField(default=0)
+    stage = models.CharField(max_length=80, default="queued")
+    selected_agent = models.CharField(max_length=32, blank=True)
+    execution_mode = models.CharField(max_length=32, default="mock")
+    result = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class JiraIssue(models.Model):
     """Normalized Jira source data imported from the historical workbook."""
     jira_id = models.CharField(max_length=32, unique=True)
