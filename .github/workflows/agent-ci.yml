@@ -52,12 +52,17 @@ jobs:
 
       - name: Extraer Issue Key y Parámetros de Jira
         run: |
-          # 1. Leer Base URL y Email desde GitHub Secrets
-          JIRA_URL="${{ secrets.JIRA_BASE_URL }}"
-          JIRA_EMAIL="${{ secrets.JIRA_USER_EMAIL }}"
+          # 1. Usar payload en dispatch y campos manuales en workflow_dispatch.
+          if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            JIRA_URL="${{ github.event.client_payload.jira_base_url }}"
+            JIRA_EMAIL="${{ github.event.client_payload.jira_email }}"
+          else
+            JIRA_URL="${{ github.event.inputs.jira_base_url }}"
+            JIRA_EMAIL="${{ github.event.inputs.jira_email }}"
+          fi
 
           if [ -z "$JIRA_URL" ] || [ -z "$JIRA_EMAIL" ]; then
-            echo "ERROR: Faltan los secrets JIRA_BASE_URL o JIRA_USER_EMAIL."
+            echo "ERROR: Debes informar jira_base_url y jira_email."
             exit 1
           fi
 
@@ -222,7 +227,7 @@ jobs:
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
       - name: Eliminar adjuntos .zip previos en Jira
-        if: always()
+        if: ${{ always() && env.JIRA_URL != '' && env.JIRA_EMAIL != '' && env.ISSUE_KEY != '' }}
         run: |
           ATTACHMENTS=$(curl --silent --request GET \
             --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}" \
@@ -239,7 +244,7 @@ jobs:
           done
 
       - name: Adjuntar ZIP a la tarjeta de Jira
-        if: always()
+        if: ${{ always() && env.JIRA_URL != '' && env.JIRA_EMAIL != '' && env.ISSUE_KEY != '' && env.ZIP_NAME != '' && hashFiles(env.ZIP_NAME) != '' }}
         run: |
           curl --request POST \
             --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}/attachments" \
