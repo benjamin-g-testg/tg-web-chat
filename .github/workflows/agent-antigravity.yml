@@ -246,6 +246,17 @@ jobs:
 
           mkdir -p "$OUTPUT_DIR" 05_Logs
 
+          mkdir -p "$OUTPUT_DIR/Entradas"
+          cp -R 01_Prompt "$OUTPUT_DIR/Entradas/"
+          cp -R 02_Datos "$OUTPUT_DIR/Entradas/"
+          cp -R 03_Info_Complementaria "$OUTPUT_DIR/Entradas/"
+          cp -R 08_Registros_a_Procesar "$OUTPUT_DIR/Entradas/"
+          if [ -d 07_Ejemplos ]; then
+            cp -R 07_Ejemplos "$OUTPUT_DIR/Entradas/"
+          fi
+
+          printf 'Antigravity CLI\n' > "$OUTPUT_DIR/Modelo_utilizado.txt"
+
           export INICIO_TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S')
           export MODEL_VERSION="Antigravity CLI"
 
@@ -260,13 +271,31 @@ jobs:
           1. CRITERIO DE INTERPRETACIÓN DEL AGENTE: Explicación clara en lenguaje natural de cómo entendió el agente el filtro recibido para evaluar los datos.
           2. RESUMEN EJECUTIVO: Métricas y hallazgos clave de las 3 fases."
 
+          set +e
           agy --model gemini-3.8-flash-low --dangerously-skip-permissions --prompt "$INSTRUCCION" 2>&1 | tee "$LOG_FILE"
           RESULTADO=${PIPESTATUS[0]}
+          set -e
+
+          if grep -qiE 'print timeout after [0-9]+m[0-9]+s with turn in progress' "$LOG_FILE"; then
+            echo "ERROR: Antigravity agotó su timeout interno mientras procesaba la solicitud."
+            RESULTADO=124
+          fi
+
+          if [ "$RESULTADO" -ne 0 ] && [ ! -f "$OUTPUT_DIR/resumen_respuesta.md" ]; then
+            printf '# Ejecución incompleta\n\nEl agente Antigravity CLI no terminó correctamente. Código de salida: %s.\nEl detalle disponible quedó registrado en\n[05_Logs/%s.log](../../../../05_Logs/%s.log).\n' \
+              "$RESULTADO" "$TIMESTAMP" "$TIMESTAMP" > "$OUTPUT_DIR/resumen_respuesta.md"
+          fi
 
           ZIP_NAME="ZIP_Antigravity_${TIMESTAMP}.zip"
-          
-          (cd "$OUTPUT_DIR" && zip -r "../${ZIP_NAME}" .)
-          mv "04_Resultado_del_Analisis/${ZIP_NAME}" "$OUTPUT_DIR/${ZIP_NAME}"
+
+          OUTPUT_FILE=$(find "$OUTPUT_DIR" -type f -print -quit)
+          if [ -z "$OUTPUT_FILE" ]; then
+            echo "ERROR: Antigravity no generó ningún archivo de salida."
+            RESULTADO=${RESULTADO:-1}
+          else
+            (cd "$OUTPUT_DIR" && zip -r "../${ZIP_NAME}" .)
+            mv "04_Resultado_del_Analisis/${ZIP_NAME}" "$OUTPUT_DIR/${ZIP_NAME}"
+          fi
 
           echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
