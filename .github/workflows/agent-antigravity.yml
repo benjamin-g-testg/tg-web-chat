@@ -60,6 +60,7 @@ jobs:
           fi
           
           CLEAN_KEY=$(echo "$RAW_KEY" | tr -d '\r\n\t ' | grep -oE '[A-Za-z0-9]+-[0-9]+' | head -n 1)
+          CLEAN_KEY=$(echo "$CLEAN_KEY" | sed -E 's/^([A-Za-z][A-Za-z0-9_]*-)0*([0-9]+)$/\1\2/')
           CLEAN_URL=$(echo "$RAW_URL" | sed -E 's/.*(https?:\/\/[^]" \)]+).*/\1/' | sed 's/\/$//' | tr -d '\r\n\t ')
           CLEAN_EMAIL=$(echo "$RAW_EMAIL" | tr -d '\r\n\t ')
 
@@ -141,7 +142,86 @@ jobs:
       - name: Extracción de Datos Jira vía Python
         run: |
           mkdir -p 02_Datos
-          python scripts/export_jira_data.py
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import requests
+          from openpyxl import Workbook
+
+          base_url = os.environ["JIRA_URL"].rstrip("/")
+          email = os.environ["JIRA_EMAIL"]
+          token = os.environ["JIRA_API_TOKEN"]
+          issue_key = os.environ["ISSUE_KEY"]
+          auth = (email, token)
+          headers = {"Accept": "application/json"}
+
+          issue_response = requests.get(
+            f"{base_url}/rest/api/3/issue/{issue_key}?fields=attachment",
+            auth=auth,
+            headers=headers,
+            timeout=30,
+          )
+          issue_response.raise_for_status()
+          attachments = issue_response.json().get("fields", {}).get("attachment", [])
+          excel = next(
+            (item for item in attachments if item.get("filename", "").lower().endswith((".xlsx", ".xls"))),
+            None,
+          )
+
+          if excel:
+            output = Path("02_Datos") / excel["filename"]
+            response = requests.get(excel["content"], auth=auth, timeout=60)
+            response.raise_for_status()
+            output.write_bytes(response.content)
+            print(f"Excel adjunto descargado: {output}")
+            raise SystemExit(0)
+
+          all_issues = []
+          next_page_token = None
+          while True:
+            payload = {
+              "jql": 'project = "TATC" ORDER BY created ASC',
+              "maxResults": 100,
+              "fields": ["summary", "status", "issuetype", "priority", "created", "updated", "assignee", "reporter"],
+            }
+            if next_page_token:
+              payload["nextPageToken"] = next_page_token
+            response = requests.post(
+              f"{base_url}/rest/api/3/search/jql",
+              auth=auth,
+              headers={**headers, "Content-Type": "application/json"},
+              json=payload,
+              timeout=60,
+            )
+            response.raise_for_status()
+            page = response.json()
+            issues = page.get("issues", [])
+            all_issues.extend(issues)
+            next_page_token = page.get("nextPageToken")
+            if not next_page_token or not issues:
+              break
+
+          workbook = Workbook()
+          sheet = workbook.active
+          sheet.title = "Resultados_Jira"
+          sheet.append(["Clave", "Resumen", "Tipo", "Estado", "Prioridad", "Asignado", "Reportador", "Creado", "Actualizado"])
+          for item in all_issues:
+            fields = item.get("fields", {})
+            sheet.append([
+              item.get("key", ""),
+              fields.get("summary", ""),
+              (fields.get("issuetype") or {}).get("name", ""),
+              (fields.get("status") or {}).get("name", ""),
+              (fields.get("priority") or {}).get("name", ""),
+              (fields.get("assignee") or {}).get("displayName", ""),
+              (fields.get("reporter") or {}).get("displayName", ""),
+              fields.get("created", ""),
+              fields.get("updated", ""),
+            ])
+          output = Path("02_Datos/Jira_Data.xlsx")
+          workbook.save(output)
+          print(f"Dataset Jira generado: {output} ({len(all_issues)} incidencias)")
+          PY
         env:
           JIRA_URL: ${{ env.JIRA_URL }}
           JIRA_EMAIL: ${{ env.JIRA_EMAIL }}
