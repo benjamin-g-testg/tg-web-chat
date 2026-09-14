@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ANTIGRAVITY_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.ANTIGRAVITY_API_KEY }}
 
     steps:
       - name: Checkout del código
@@ -238,6 +238,8 @@ jobs:
       - name: Ejecutar Agente Antigravity CLI y Empaquetar Entregables
         run: |
           set -o pipefail
+          mkdir -p "$HOME/.gemini/antigravity-cli"
+          printf '{"modelProvider":"gemini"}\n' > "$HOME/.gemini/antigravity-cli/settings.json"
           TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
           OUTPUT_DIR="04_Resultado_del_Analisis/${TIMESTAMP}"
           LOG_FILE="05_Logs/${TIMESTAMP}.log"
