@@ -1,15 +1,40 @@
 # Python
+.venv/
+venv/
 backend/.venv/
-backend/__pycache__/
-backend/**/__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment and secrets. Never commit real credentials.
+.env
+.env.*
+!.env.example
+!**/.env.example
 backend/.env
 frontend/.env
-*.py[cod]
 
 # Node and Vite
 frontend/node_modules/
 frontend/dist/
 *.tsbuildinfo
+npm-debug.log*
+
+# Generated analysis output and local agent harnesses
+02_Datos/
+04_Resultado_del_Analisis/
+05_Logs/
+.codex-harness/
+.codex-harness-local/
+
+# Local dumps that may contain issue data or credentials
+chat.json
+*.log
 
 # Local editor and operating-system files
 .vscode/

@@ -1,17 +1,17 @@
 """
 JiraAgent: Interpreta comandos del usuario y ejecuta acciones en Jira.
-Soporta comandos para leer, filtrar, crear reportes y exportar datos.
-
-Phase 2: Agentes inteligentes basados en intención de usuario.
+Soporta comandos para lectura, filtrado dinamico, creacion de reportes y exportacion de datos.
 """
 import re
-from dataclasses import dataclass, field
+import unicodedata
+from difflib import get_close_matches
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, Any
 
 
 class IntentType(Enum):
-    """Tipos de intención que puede detectar el agente"""
+    """Tipos de intencion que puede detectar el agente."""
     LIST_BLOCKED = "list_blocked"
     LIST_BY_STATUS = "list_by_status"
     CREATE_REPORT = "create_report"
@@ -23,7 +23,7 @@ class IntentType(Enum):
 
 @dataclass
 class AgentResponse:
-    """Respuesta del agente después de procesar un mensaje"""
+    """Estructura de respuesta del agente despues de procesar un mensaje."""
     intent: IntentType
     action: str
     data: Optional[Dict[str, Any]] = None
@@ -32,10 +32,10 @@ class AgentResponse:
 
 
 class JiraAgent:
-    """Agente que interpreta mensajes y ejecuta acciones en Jira"""
-    
+    """Agente que interpreta mensajes en lenguaje natural y genera intenciones estructuradas."""
+
     def __init__(self):
-        """Inicializa el agente con patrones de intención"""
+        """Inicializa los patrones de deteccion de intencion."""
         self.intent_patterns = {
             IntentType.LIST_BLOCKED: [
                 r"(bloqueados?|bloqueante|bloqueos?|bloqueadas?)",
@@ -43,12 +43,12 @@ class JiraAgent:
             ],
             IntentType.LIST_BY_STATUS: [
                 r"(en curso|in progress|progreso)",
-                r"(backlog|por hacer|todo)",
-                r"(terminado|done|completado|cerrado)",
+                r"(backlog|por hacer|todo|pendientes?)",
+                r"(terminado|done|completado|cerrado|resuelto)",
             ],
             IntentType.CREATE_REPORT: [
-                r"(reporte|report|análisis|analysis|resumen)",
-                r"(summary|estadísticas|stats)",
+                r"(reporte|report|analisis|analysis|resumen)",
+                r"(summary|estadisticas|stats|metricas)",
             ],
             IntentType.EXPORT_EXCEL: [
                 r"(exporta?r?|export).*(excel|xlsx)",
@@ -58,155 +58,173 @@ class JiraAgent:
                 r"(filtr[ao]|filter|busca?r?|search)",
             ],
         }
-    
+
     def detect_intent(self, message: str) -> IntentType:
-        """Detecta la intención del mensaje usando regex"""
+        """Detecta la intencion principal del mensaje usando patrones regex normalizados."""
         if not message:
             return IntentType.UNKNOWN
-        
-        message_lower = message.lower()
-        
+
+        message_lower = normalize_text(message)
+
         for intent, patterns in self.intent_patterns.items():
             for pattern in patterns:
                 try:
                     if re.search(pattern, message_lower):
                         return intent
                 except re.error:
-                    # Si hay error en regex, continuar con siguiente patrón
                     continue
-        
+
         return IntentType.UNKNOWN
-    
+
     def process_message(self, message: str) -> AgentResponse:
         """
-        Procesa mensaje y retorna acción a ejecutar.
-        
-        Args:
-            message: Mensaje del usuario
-            
-        Returns:
-            AgentResponse con intención detectada y acción a ejecutar
+        Procesa el mensaje del usuario y construye la respuesta estructurada de la intencion.
         """
-        
         if not message or len(message) > 5000:
             return AgentResponse(
                 intent=IntentType.UNKNOWN,
                 action="error",
-                error="Mensaje inválido o muy largo"
+                error="Mensaje invalido o excede el limite de caracteres.",
             )
-        
-        intent = self.detect_intent(message)
-        
+
+        normalized = normalize_text(message)
+        intent = self.detect_intent(normalized)
+        status = extract_status(normalized)
+
+        filters: Dict[str, Any] = {}
+        if status:
+            filters["status_category"] = status
+
+        key_match = re.search(r"\b([a-z]+-\d+)\b", normalized)
+        if key_match:
+            filters["issue_key"] = key_match.group(1).upper()
+
+        numeric_match = re.search(
+            r"\b(?:issue|issues|ticket|tickets|caso|casos)\s*(?:numero\s*)?#?\s*(\d+)\b",
+            normalized,
+        )
+        if numeric_match and "issue_key" not in filters:
+            filters["issue_key"] = f"TATC-{numeric_match.group(1)}"
+
+        if re.search(r"\b(asignad[oa]s?|responsable|dueno|duena|encargad[oa]|owner)\b", normalized) and re.search(r"\b(a\s+mi|mis|mios|mias|yo)\b", normalized):
+            filters["assignee_me"] = True
+
+        assignee_match = re.search(
+            r"\b(?:asignad[oa]s?|responsable|dueno|duena|encargad[oa]|owner)\s+(?:a\s+)?([a-z][\w .'-]{2,})",
+            normalized,
+        )
+        if assignee_match and not filters.get("assignee_me"):
+            candidate = assignee_match.group(1).strip(" .,'\"")
+            candidate = re.split(r"\s+(?:en|con|de|del|que|y)\s+", candidate, maxsplit=1)[0]
+            if candidate:
+                filters["assignee"] = candidate
+
+        limit_match = re.search(r"\b(?:los|las|primeros|primeras)\s+(\d+)\b", normalized)
+        data: Dict[str, Any] = {"filters": filters, "normalized_query": normalized}
+        if limit_match:
+            data["limit"] = int(limit_match.group(1))
+
         if intent == IntentType.LIST_BLOCKED:
-            return self._handle_list_blocked()
-        
+            response = AgentResponse(
+                intent=IntentType.LIST_BLOCKED,
+                action="list_blocked",
+                message="Buscando incidencias con bloqueo o criticidad bloqueante en el proyecto TATC.",
+            )
         elif intent == IntentType.LIST_BY_STATUS:
-            status = self._extract_status(message)
-            return self._handle_list_by_status(status)
-        
+            category = status or "desconocido"
+            response = AgentResponse(
+                intent=IntentType.LIST_BY_STATUS,
+                action="list_by_status",
+                data={"status": status, "category": category},
+                message=f"Filtrando incidencias bajo categoria '{category}'.",
+            )
         elif intent == IntentType.CREATE_REPORT:
-            return self._handle_create_report(message)
-        
+            response = AgentResponse(
+                intent=IntentType.CREATE_REPORT,
+                action="run_qa_pipeline",
+                message="Generando reporte integral de analisis QA.",
+            )
         elif intent == IntentType.EXPORT_EXCEL:
-            return self._handle_export_excel(message)
-        
+            response = AgentResponse(
+                intent=IntentType.EXPORT_EXCEL,
+                action="export_excel",
+                message="Preparando dataset para exportacion Excel.",
+            )
         elif intent == IntentType.FILTER_ISSUES:
-            filter_term = self._extract_filter(message)
-            return self._handle_filter_issues(filter_term)
-        
+            filter_term = self._extract_filter(normalized)
+            response = AgentResponse(
+                intent=IntentType.FILTER_ISSUES,
+                action="filter_issues",
+                data={"filter": filter_term},
+                message=f"Filtrando incidencias por criterio: '{filter_term}'.",
+            )
         else:
-            return AgentResponse(
+            response = AgentResponse(
                 intent=IntentType.GENERAL_QUERY,
                 action="run_qa_pipeline",
-                message="Consulta general procesada por pipeline QA"
+                message="Consulta general procesada por pipeline QA.",
             )
-    
-    def _handle_list_blocked(self) -> AgentResponse:
-        """Listar issues bloqueados"""
-        return AgentResponse(
-            intent=IntentType.LIST_BLOCKED,
-            action="list_blocked",
-            message="Buscando issues bloqueados en el proyecto TATC..."
-        )
-    
-    def _handle_list_by_status(self, status: str) -> AgentResponse:
-        """Listar issues por estado"""
-        status_map = {
-            "bloqueado": "done",
-            "terminado": "done",
-            "en curso": "indeterminate",
-            "progreso": "indeterminate",
-            "backlog": "new",
-            "por hacer": "new",
-        }
-        
-        category = status_map.get(status.lower(), status)
-        
-        return AgentResponse(
-            intent=IntentType.LIST_BY_STATUS,
-            action="list_by_status",
-            data={"status": status, "category": category},
-            message=f"Filtrando issues en estado '{status}'..."
-        )
-    
-    def _handle_create_report(self, message: str) -> AgentResponse:
-        """Crear reporte de análisis"""
-        return AgentResponse(
-            intent=IntentType.CREATE_REPORT,
-            action="run_qa_pipeline",
-            message="Generando reporte de análisis QA..."
-        )
-    
-    def _handle_export_excel(self, message: str) -> AgentResponse:
-        """Exportar datos a Excel"""
-        return AgentResponse(
-            intent=IntentType.EXPORT_EXCEL,
-            action="export_excel",
-            message="Preparando descarga de Excel..."
-        )
-    
-    def _handle_filter_issues(self, filter_term: str) -> AgentResponse:
-        """Filtrar issues por término"""
-        return AgentResponse(
-            intent=IntentType.FILTER_ISSUES,
-            action="filter_issues",
-            data={"filter": filter_term},
-            message=f"Filtrando issues por: '{filter_term}'"
-        )
-    
-    def _extract_status(self, message: str) -> str:
-        """Extrae estado del mensaje"""
-        status_keywords = {
-            "bloqueado": "bloqueado",
-            "terminado": "terminado",
-            "en curso": "en curso",
-            "progreso": "en curso",
-            "backlog": "backlog",
-            "por hacer": "backlog",
-            "done": "terminado",
-        }
-        
-        message_lower = message.lower()
-        for keyword in status_keywords:
-            if keyword in message_lower:
-                return keyword
-        
-        return "desconocido"
-    
+
+        response.data = {**data, **(response.data or {})}
+        return response
+
     def _extract_filter(self, message: str) -> str:
-        """Extrae término de filtro del mensaje"""
-        # Busca texto entre comillas
+        """Extrae termino o criterio de busqueda de un mensaje."""
         match = re.search(r'"([^"]+)"', message)
         if match:
             return match.group(1)
-        
-        # Si no hay comillas, toma el resto después de palabra clave
-        match = re.search(
-            r'(?:filtro|filter|buscar|search)\s+(.+)',
-            message,
-            re.IGNORECASE
-        )
+
+        match = re.search(r"(?:filtro|filter|buscar|search)\s+(.+)", message, re.IGNORECASE)
         if match:
             return match.group(1).strip()
-        
+
         return ""
+
+
+def normalize_text(value: str) -> str:
+    """Normaliza texto eliminando acentos, estandarizando espacios y convirtiendo a minusculas."""
+    value = unicodedata.normalize("NFKC", value).casefold()
+    value = "".join(char for char in unicodedata.normalize("NFD", value) if unicodedata.category(char) != "Mn")
+    value = re.sub(r"[^\w\s#-]", " ", value, flags=re.UNICODE)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def extract_status(message: str) -> str:
+    """Mapea terminos y sinonimos de estado a categorias globales nativas de Jira."""
+    normalized = normalize_text(message)
+    aliases = {
+        "done": "done",
+        "terminado": "done",
+        "terminados": "done",
+        "completado": "done",
+        "completados": "done",
+        "cerrado": "done",
+        "cerrados": "done",
+        "resuelto": "done",
+        "resueltos": "done",
+        "en curso": "indeterminate",
+        "in progress": "indeterminate",
+        "progreso": "indeterminate",
+        "backlog": "new",
+        "por hacer": "new",
+        "pendiente": "new",
+        "pendientes": "new",
+        "nuevo": "new",
+        "nuevos": "new",
+        "nueva": "new",
+        "nuevas": "new",
+        "bloqueado": "blocked",
+        "bloqueados": "blocked",
+        "bloqueante": "blocked",
+        "blocked": "blocked",
+    }
+    for alias, category in aliases.items():
+        if alias in normalized:
+            return category
+    words = normalized.split()
+    known = list(aliases)
+    for word in words:
+        match = get_close_matches(word, known, n=1, cutoff=0.82)
+        if match:
+            return aliases[match[0]]
+    return ""

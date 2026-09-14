@@ -5,3 +5,6 @@ psycopg[binary]>=3.2
 python-dotenv>=1.0
 drf-spectacular>=0.28
 openpyxl>=3.1
+requests>=2.32
+python-docx>=1.1
+reportlab>=4.2

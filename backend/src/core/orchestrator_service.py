@@ -51,6 +51,30 @@ def create_analysis_job(session: Session, request_text: str, intent: str) -> Ana
             "message": "Job preparado para conectarse con GitHub Actions.",
         }
         job.save(update_fields=["status", "progress", "stage", "result", "updated_at"])
+    elif mode == "local":
+        job.status = AnalysisJob.Status.RUNNING
+        job.progress = 35
+        job.stage = "python_analysis"
+        job.save(update_fields=["status", "progress", "stage", "updated_at"])
+    return job
+
+
+def complete_local_job(job: AnalysisJob, result: dict[str, object]) -> AnalysisJob:
+    """Persist the deterministic Python result before an optional local agent step."""
+    job.status = AnalysisJob.Status.COMPLETED
+    job.progress = 100
+    job.stage = "completed"
+    job.result = result
+    job.save(update_fields=["status", "progress", "stage", "result", "updated_at"])
+    return job
+
+
+def fail_local_job(job: AnalysisJob, error: Exception) -> AnalysisJob:
+    job.status = AnalysisJob.Status.FAILED
+    job.progress = 100
+    job.stage = "failed"
+    job.error = str(error)
+    job.save(update_fields=["status", "progress", "stage", "error", "updated_at"])
     return job
 
 

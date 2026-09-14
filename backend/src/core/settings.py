@@ -23,7 +23,7 @@ ROOT_URLCONF = "src.core.urls"
 TEMPLATES = [{"BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [], "APP_DIRS": True,
               "OPTIONS": {"context_processors": ["django.template.context_processors.request", "django.contrib.auth.context_processors.auth", "django.contrib.messages.context_processors.messages"]}}]
 WSGI_APPLICATION = "src.core.wsgi.application"
-DATABASES = {"default": {"ENGINE": "django.db.backends.postgresql", "NAME": os.getenv("POSTGRES_DB", "chatbot_db"), "USER": os.getenv("POSTGRES_USER", "postgres"), "PASSWORD": os.getenv("POSTGRES_PASSWORD", "pokemega"), "HOST": os.getenv("POSTGRES_HOST", "localhost"), "PORT": os.getenv("POSTGRES_PORT", "5432")}}
+DATABASES = {"default": {"ENGINE": "django.db.backends.postgresql", "NAME": os.getenv("POSTGRES_DB", os.getenv("DB_NAME", "chatbot_db")), "USER": os.getenv("POSTGRES_USER", os.getenv("DB_USER", "postgres")), "PASSWORD": os.getenv("POSTGRES_PASSWORD", os.getenv("DB_PASSWORD", "")), "HOST": os.getenv("POSTGRES_HOST", os.getenv("DB_HOST", "localhost")), "PORT": os.getenv("POSTGRES_PORT", os.getenv("DB_PORT", "5432"))}}
 AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = []
 LANGUAGE_CODE, TIME_ZONE, USE_I18N, USE_TZ = "es-cl", "America/Santiago", True, True
 STATIC_URL = "static/"
@@ -33,13 +33,16 @@ REST_FRAMEWORK = {"DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRen
 SPECTACULAR_SETTINGS = {"TITLE": "ChatBot QA API", "DESCRIPTION": "API para análisis QA de datos Jira.", "VERSION": "1.0.0"}
 
 # Configuración de Jira
-JIRA_SERVER = os.getenv('JIRA_SERVER')
-JIRA_USER = os.getenv('JIRA_USER')
+JIRA_SERVER = os.getenv('JIRA_SERVER', os.getenv('JIRA_URL', ''))
+JIRA_USER = os.getenv('JIRA_USER', os.getenv('JIRA_EMAIL', ''))
 JIRA_API_TOKEN = os.getenv('JIRA_API_TOKEN')
+JIRA_CURRENT_USER = os.getenv('JIRA_CURRENT_USER', JIRA_USER)
 # Jira Cloud es la fuente de verdad del chat. La fuente local solo se habilita
 # explícitamente con JIRA_DATA_SOURCE=local para pruebas.
 JIRA_DATA_SOURCE = os.getenv('JIRA_DATA_SOURCE', 'jira').lower()
-AGENT_EXECUTION_MODE = os.getenv('AGENT_EXECUTION_MODE', 'mock').lower()
+AGENT_EXECUTION_MODE = os.getenv('AGENT_EXECUTION_MODE', 'local').lower()
+AGENT_PROVIDER = os.getenv('AGENT_PROVIDER', 'codex').lower()
+AGENT_TIMEOUT = int(os.getenv('AGENT_TIMEOUT', '900'))
 GITHUB_REPOSITORY = os.getenv('GITHUB_REPOSITORY', '')
 GITHUB_WORKFLOW_BRANCH = os.getenv('GITHUB_WORKFLOW_BRANCH', 'test')
 GITHUB_DISPATCH_TOKEN = os.getenv('GITHUB_DISPATCH_TOKEN', '')
