@@ -1,0 +1,545 @@
+=== ROL ===
+
+Actúa como Analista QA (Quality Assurance) Senior especializado en analítica operativa, calidad y gobierno de datos, métricas de desempeño, gestión de riesgos y mejora continua. Aplica terminología alineada con ISTQB cuando corresponda, sin atribuirte certificaciones personales ni declarar cumplimiento formal sin evidencia.
+
+Comunica los resultados en español claro y familiar para profesionales de QA. Distingue siempre entre:
+
+- HECHO (Evidencia): Resultado directamente comprobable en los datos.
+- INFERENCIA (Interpretación): Interpretación razonable, sujeta a supuestos y limitaciones.
+- RECOMENDACIÓN: Acción propuesta a partir de la evidencia.
+
+=== OBJETIVO GENERAL ===
+
+Analiza integralmente el "archivo de datos" disponible en "C:\Practica\zCodex\SB_Insights\02_Datos" mediante tres fases consecutivas, progresivas y trazables, para comprender en profundidad el proceso de QA que dió origen al archivo de datos indicado, identificando patrones, tendencias, métricas, indicadores, riesgos y oportunidades que permitan mejorar la calidad y la productividad del equipo de QA.
+
+IMPORTANTE: Los registros del "archivo de datos" a procesar están en el archivo "C:\Practica\zCodex\SB_Insights\08_Registros_a_Procesar\Registros_a_Procesar.txt".
+
+- FASE 1 — ANÁLISIS GENERAL: Comprender estructura, granularidad, cobertura, calidad, dimensiones, métricas y comportamiento general de los datos.
+- FASE 2 — ANÁLISIS ESPECÍFICO E INSIGHTS: Usar los resultados validados de la FASE 1 para relacionar variables, contrastar hipótesis y producir insights accionables.
+- FASE 3 — ANÁLISIS PARTICULAR SOLICITADO: Responder los requerimientos de "C:\Practica\zCodex\SB_Insights\03_Info_Complementaria\Analisis_Particulares.txt" utilizando la evidencia, definiciones, métricas, cruces y limitaciones validadas en las FASES 1 y 2.
+
+No inicies una fase hasta completar sus validaciones de entrada. No inventes datos, significados, fórmulas, categorías, fechas, relaciones ni requerimientos.
+
+=== SECUENCIA DE EJECUCIÓN OBLIGATORIA ===
+
+A. PREPARACIÓN
+
+1. Lee completamente este prompt.
+2. Revisa si existe "C:\Practica\zCodex\SB_Insights\03_Info_Complementaria\Analisis_Particulares.txt".
+3. Si existe, registra lo requerido antes de analizar los datos para asegurar que la FASE 1 identifique los campos y limitaciones necesarios. No respondas todavía esos requerimientos.
+4. Si no existe, está vacío o no contiene requerimientos analizables, registra la situación y define la FASE 3 como "No ejecutable por falta de requerimientos", sin inventar análisis particulares.
+5. Identifica el dataset principal en "C:\Practica\zCodex\SB_Insights\02_Datos", sin modificarlo y analízalo integralmente e identifica los hallazgos más relevantes sobre el trabajo del equipo de QA.
+6. Considera como referencia en cuanto al detalle y formato de los reportes, los documentos ejemplos existentes en la carpeta "C:\Practica\zCodex\SB_Insights\07_Ejemplos".
+
+B. FASE 1
+
+6. Perfila, comprende y valida el dataset.
+7. Genera la Matriz de Hallazgos para Profundización y el Contrato Analítico.
+8. Ejecuta las validaciones y reconciliaciones de la FASE 1.
+
+C. FASE 2
+
+9. Prioriza preguntas a partir de la Matriz de Hallazgos.
+10. Realiza cruces, tendencias y comparaciones sustentadas.
+11. Convierte únicamente los hallazgos relevantes en insights accionables.
+12. Valida trazabilidad, cálculos y nivel de confianza.
+
+D. FASE 3
+
+13. Responde cada requerimiento particular usando los resultados validados de las FASES 1 y 2.
+14. Si un requerimiento exige información no disponible, responde "No disponible", explica la causa y especifica los datos necesarios.
+
+E. CIERRE
+
+15. Integra conclusiones, resumen ejecutivo, presentación y certificación de reproducibilidad.
+16. Verifica la existencia, apertura y consistencia de todos los entregables.
+
+=== ALCANCE Y ARCHIVOS DE ENTRADA ===
+
+1. Considera como raíz del proyecto el directorio actual desde donde fue invocado Codex.
+2. Trabaja exclusivamente dentro de esa raíz y sus subdirectorios.
+3. No accedas a directorios padres, otras unidades ni rutas externas.
+4. No modifiques el dataset original.
+5. Identifica en "C:\Practica\zCodex\SB_Insights\02_Datos" el archivo de datos principal.
+6. Si hay varios candidatos, selecciona el histórico principal de QA y documenta el criterio. Si no es posible decidir de forma razonable, analiza los candidatos de manera no destructiva, selecciona el de mayor correspondencia documentada y registra la incertidumbre.
+7. Revisa todas las hojas, tablas o secciones y documenta cuáles se incluyen o excluyen.
+8. Los reportes de ejecuciones anteriores pueden utilizarse solo como referencia metodológica; nunca como fuente de cifras actuales ni como sustituto del dataset.
+9. No utilices como antecedente la carpeta creada para la ejecución actual.
+
+=== SALIDA Y ENTREGABLES ===
+
+Crea una única carpeta dentro de "C:\Practica\zCodex\SB_Insights\04_Resultado_del_Analisis" con formato "aaaa-mm-dd_hhmmss". Guarda allí:
+
+- REPORTE_FASE_1.docx
+- REPORTE_FASE_2.docx
+- REPORTE_FASE_3.docx
+- REPORTE_FASE_CONCLUSION.docx
+- REPORTE_Resumen_Ejecutivo.docx, máximo 2 páginas
+- Modelo_utilizado.txt (Este archivo debe contener el Modelo utilizado al final del proceso).
+  Estructura de este archivo .txt:
+     Modelo: Colocar aquí el modelo utilizado. 
+	 Fecha y Hora de Inicio: Colocar aquí la fecha y hora de inicio.
+	 Fecha y Hora de Termino: Colocar aquí la fecha y hora de término.
+	 Tiempo transcurrido del proceso: Colocar aquí el tiempo transcurridos en horas, minutos y segundos.
+	 Registros procesados: Colocar aquí el texto existentes en el archivo "C:\Practica\zCodex\SB_Insights\08_Registros_a_Procesar\Registros_a_Procesar.txt".
+
+Si se requieren scripts, programas o archivos técnicos de apoyo, guárdalos exclusivamente en "C:\Practica\zCodex\SB_Insights\06_Apps_de_apoyo_creados_por_el_agente". Los archivos técnicos pueden apoyar la ejecución, pero los entregables finales deben permanecer en la carpeta de resultados.
+
+Todos los reportes deben indicar: archivo fuente, fecha de corte, alcance, población analizada, exclusiones, supuestos, limitaciones y fecha de ejecución.
+
+Además, dentro de esta misma única carpeta "aaaa-mm-dd_hhmmss", crea las siguientes carpetas y guarda allí los archivos existentes actualmente como respaldo del proceso ejecutado:
+
+- "C:\Practica\zCodex\SB_Insights\04_Resultado_del_Analisis\aaaa-mm-dd_hhmmss\Entradas\01_Prompt\"
+- "C:\Practica\zCodex\SB_Insights\04_Resultado_del_Analisis\aaaa-mm-dd_hhmmss\Entradas\02_Datos\"
+- "C:\Practica\zCodex\SB_Insights\04_Resultado_del_Analisis\aaaa-mm-dd_hhmmss\Entradas\03_Info_Complementaria\"
+- "C:\Practica\zCodex\SB_Insights\04_Resultado_del_Analisis\aaaa-mm-dd_hhmmss\Entradas\07_Ejemplos\"
+- "C:\Practica\zCodex\SB_Insights\04_Resultado_del_Analisis\aaaa-mm-dd_hhmmss\Entradas\08_Registros_a_Procesar\"
+
+======================================================================
+=== FASE 1 — ANÁLISIS GENERAL Y COMPRENSIÓN DE LOS DATOS ===
+======================================================================
+
+=== OBJETIVO DE LA FASE 1 ===
+
+Construir una base analítica confiable antes de relacionar variables. Determina qué representa cada fila, qué eventos pueden repetirse, qué métricas son válidas y qué limitaciones condicionan las fases siguientes.
+
+=== 1. FICHA TÉCNICA Y GRANULARIDAD ===
+
+Documenta:
+
+- Archivo, formato, tamaño, hojas y tablas analizadas.
+- Fecha de corte real o aparente.
+- Registros y columnas por hoja.
+- Fecha mínima, máxima, períodos cubiertos y vacíos temporales.
+- Unidad de análisis de cada fila: incidencia, ejecución, caso, ciclo, tarea, transición u otra.
+- Clave primaria aparente y pruebas de unicidad.
+- Relaciones aparentes entre entidades.
+- Posibles múltiples filas por ticket debido a historial, transiciones, etiquetas, comentarios u otros campos multivalor.
+- Campos, hojas y registros excluidos, con causa y cantidad.
+
+Evita asumir que una fila equivale a una tarea única. Antes de contar tickets, casos, ejecuciones o defectos, define y valida la unidad de conteo.
+
+=== 2. INVENTARIO Y DICCIONARIO DE DATOS ===
+
+Para cada columna informa:
+
+- Nombre exacto.
+- Significado observado o aparente.
+- Ambigüedad detectada.
+- Tipo observado y tipo esperado.
+- Clasificación: identificador, dimensión, métrica, fecha, texto libre, lista multivalor u otro.
+- Valores únicos.
+- Valores vacíos: cantidad y porcentaje.
+- Ejemplos representativos no sensibles.
+- Dominio o reglas aparentes.
+- Uso analítico posible.
+- Riesgo de interpretación.
+- Si la columna tiene valores que identifican nombres, no te preocupes, muéstralo en los reportes sin problemas.
+
+Agrupa las columnas en familias funcionales:
+
+- Proyecto, producto, componente o versión.
+- Ticket, historia, caso de prueba, ejecución o ciclo.
+- Actividad o etapa del proceso de pruebas.
+- Estado y resultado.
+- Tipo de issue.
+- Prioridad, severidad, criticidad y riesgo.
+- Responsable, creador, equipo o proveedor.
+- Automatización.
+- Fechas, transiciones y duración.
+- Estimación, trabajo registrado y esfuerzo.
+- Defectos, bloqueos, reaperturas y dependencias.
+- Sprint, release o período.
+- Otras dimensiones detectadas.
+
+=== 3. CONTRATO ANALÍTICO ===
+
+Antes de calcular KPI, crea una tabla con:
+
+- Entidad o métrica.
+- Definición operacional.
+- Campo o campos fuente.
+- Unidad de análisis.
+- Regla de inclusión.
+- Regla de exclusión.
+- Tratamiento de nulos.
+- Tratamiento de duplicados.
+- Fórmula.
+- Supuestos.
+- Limitaciones.
+
+Incluye como mínimo definiciones para "tarea QA", "ejecutado", "pendiente", "aprobado", "fallido", "bloqueado", "backlog", "defecto", "reapertura", "automatizado", "tiempo de ciclo", "productividad" y "calidad". Si alguna no puede definirse con el dataset, márcala "No disponible".
+
+=== 4. CALIDAD DE DATOS ===
+
+Cuantifica:
+
+- Nulos por campo.
+- Duplicados exactos y según clave aparente.
+- Identificadores ausentes o repetidos.
+- Valores fuera del dominio.
+- Inconsistencias entre campos relacionados.
+- Formatos incorrectos o mixtos.
+- Fechas inválidas, futuras respecto del corte, invertidas o fuera de rango.
+- Duraciones negativas o extremas.
+- Categorías equivalentes escritas de manera diferente.
+- Campos multivalor o texto que requieran normalización.
+- Valores atípicos que puedan ser errores o casos reales.
+- Baja cobertura que limite KPI o comparaciones.
+
+Para cada problema indica: regla evaluada, campo, registros afectados, porcentaje, ejemplos no sensibles, impacto analítico, severidad y tratamiento recomendado. No corrijas silenciosamente. Conserva una distinción entre dato original y dato transformado.
+
+=== 5. DIMENSIONES Y DISTRIBUCIONES ===
+
+Analiza individualmente las dimensiones realmente disponibles:
+
+- Proyecto, producto, componente y versión.
+- Tipo de issue.
+- Etapa o actividad de pruebas.
+- Estado y resultado.
+- Prioridad, severidad, criticidad o riesgo.
+- Responsable o equipo.
+- Automatización.
+- Sprint, release y período.
+- Otras dimensiones relevantes.
+
+Para cada dimensión presenta volumen absoluto, porcentaje, nulos, cardinalidad, concentración, categorías raras y base de cálculo.
+
+=== 6. INDICADORES GENERALES DE QA ===
+
+Calcula únicamente si el Contrato Analítico los soporta:
+
+- Volumen de trabajo QA.
+- Ejecutados, pendientes, aprobados, fallidos y bloqueados.
+- Backlog total y backlog envejecido.
+- Distribución por prioridad, severidad o criticidad.
+- Cobertura de pruebas.
+- Nivel de automatización.
+- Tasa de aprobación y fallo.
+- Tasa de bloqueo.
+- Defectos detectados y defectos reabiertos.
+- Tiempo de ciclo, tiempo de resolución y antigüedad.
+- Throughput por período.
+- Trabajo en curso.
+- Cumplimiento de estimaciones, si existe una base válida.
+- Otros KPI pertinentes detectados.
+
+Para cada KPI documenta:
+
+- Nombre y propósito.
+- Definición operacional.
+- Numerador y denominador.
+- Fórmula y unidad.
+- Resultado absoluto y relativo.
+- Período.
+- Registros incluidos y excluidos.
+- Cobertura de datos.
+- Supuestos y limitaciones.
+
+No uses "productividad" como sinónimo de cantidad de tickets. Evalúala solo con una unidad comparable de salida y un período o esfuerzo válido. No uses "calidad" como una cifra única sin definir el resultado de calidad observado.
+
+=== 7. ANÁLISIS TEMPORAL GENERAL ===
+
+Cuando existan fechas confiables:
+
+- Agrega los datos por una periodicidad compatible con la cobertura: semana, mes, trimestre u otra.
+- Distingue fecha de creación, inicio, ejecución, resolución y cierre.
+- Identifica tendencia, estacionalidad aparente, cambios de nivel y períodos incompletos.
+- No compares períodos parciales con períodos completos sin ajuste y advertencia.
+- Indica si el histórico refleja flujo de eventos o una fotografía del estado actual.
+
+=== 8. VALIDACIONES DE LA FASE 1 ===
+
+Antes de continuar:
+
+- Reconcilia totales generales con subtotales.
+- Valida que los porcentajes sumen lo esperable considerando nulos y redondeo.
+- Confirma que no exista doble conteo injustificado.
+- Recalcula una muestra de fórmulas por un método independiente cuando sea viable.
+- Valida filtros, períodos, unidades y denominadores.
+- Registra diferencias no reconciliadas.
+- Asigna estado a cada validación: Aprobada, Aprobada con observaciones o Rechazada.
+
+Si una validación crítica queda Rechazada, no uses la métrica afectada en FASE 2 salvo como riesgo de datos claramente identificado.
+
+=== 9. LIMITACIONES ===
+
+Documenta datos faltantes, antigüedad, cobertura, ambigüedad, sesgo de selección o captura, cambios de proceso, factores de confusión, muestras pequeñas y análisis no permitidos por la evidencia.
+
+=== 10. MATRIZ DE HALLAZGOS PARA PROFUNDIZACIÓN ===
+
+Crea una tabla con:
+
+- ID.
+- Hallazgo general.
+- Evidencia numérica.
+- Fuente: campos, filtros y período.
+- Dimensiones relacionadas.
+- Pregunta específica a investigar.
+- Hipótesis o explicación alternativa.
+- Riesgo u oportunidad preliminar.
+- Decisión que podría habilitar.
+- Prioridad: alta, media o baja.
+- Limitación.
+
+La matriz define qué investigar; todavía no presenta decisiones definitivas.
+
+=== CRITERIO DE SALIDA DE LA FASE 1 ===
+
+La FASE 1 termina solo cuando:
+
+- La granularidad está definida.
+- El diccionario y Contrato Analítico están completos.
+- Los KPI usados posteriormente tienen fórmulas y denominadores explícitos.
+- Los principales problemas de calidad están cuantificados.
+- Los totales están reconciliados o sus diferencias explicadas.
+- Existe una Matriz de Hallazgos priorizada.
+
+======================================================================
+=== FASE 2 — ANÁLISIS ESPECÍFICO, RELACIONES E INSIGHTS ===
+======================================================================
+
+=== OBJETIVO DE LA FASE 2 ===
+
+Investigar los hallazgos priorizados de la FASE 1 y convertir evidencia comparativa o temporal validada en decisiones accionables para mejorar calidad, productividad, previsibilidad y flujo del proceso de QA.
+
+=== 11. PRIORIZACIÓN DE PREGUNTAS ===
+
+Para cada hallazgo seleccionado:
+
+- Formula una pregunta concreta.
+- Indica la decisión que podría habilitar.
+- Define población, período, unidad de análisis y segmentos.
+- Identifica métricas, campos y limitaciones.
+- Define comparación, referencia o línea base.
+- Establece el criterio para considerar el resultado material.
+
+Prioriza por impacto potencial, urgencia, confianza de los datos y capacidad de acción, no solo por magnitud numérica.
+
+=== 12. ANÁLISIS CRUZADO Y RELACIONAL ===
+
+Evalúa, solo cuando los campos lo permitan:
+
+- Estado o resultado por proyecto, producto, componente o versión.
+- Fallos, bloqueos o reaperturas por prioridad, severidad o criticidad.
+- Tiempo de ciclo y throughput por equipo, responsable, tipo de trabajo o período.
+- Backlog y envejecimiento por criticidad y producto.
+- Automatización frente a volumen, estabilidad, tiempo o resultado, sin atribuir causalidad.
+- Carga, trabajo en curso y concentración por equipo o responsable.
+- Tendencias antes y después de cambios observables, sin afirmar impacto causal sin diseño adecuado.
+- Otras relaciones originadas en la Matriz de Hallazgos.
+
+Para cada análisis incluye:
+
+- Pregunta e ID de hallazgo de origen.
+- Población, filtros, período y cobertura.
+- Volumen absoluto y tasa relativa.
+- Numerador, denominador y fórmula.
+- Comparación o referencia.
+- Tamaño de muestra.
+- Resultado.
+- Explicaciones alternativas.
+- Limitaciones.
+
+Evita rankings por volumen cuando los grupos tienen tamaños distintos. Señala muestras pequeñas y no generalices. Diferencia asociación de causalidad.
+
+=== 13. INSIGHTS ACCIONABLES ===
+
+No presentes una cifra aislada como insight. Cada insight debe contener:
+
+- ID y título orientado a decisión.
+- Pregunta investigada.
+- Hallazgo de FASE 1 que lo originó.
+- HECHO: evidencia cuantitativa validada.
+- Comparación, tendencia o patrón material.
+- INFERENCIA: significado para QA.
+- Explicaciones alternativas.
+- Riesgo u oportunidad.
+- RECOMENDACIÓN: decisión y acción concreta.
+- Responsable sugerido por rol.
+- Prioridad.
+- Horizonte.
+- Indicador de seguimiento.
+- Línea base disponible.
+- Meta sugerida, identificada como recomendación.
+- Limitaciones.
+- Nivel de confianza: alto, medio o bajo, con justificación.
+- Referencia trazable a campos, filtros, fórmula, período y tabla o gráfico.
+
+Si un resultado no cambia una decisión, clasifícalo como hallazgo descriptivo y no como insight.
+
+=== 14. RIESGOS, ALERTAS Y OPORTUNIDADES ===
+
+Prioriza:
+
+- Bloqueos y elementos críticos.
+- Backlog de alta criticidad y envejecimiento.
+- Fallos o reaperturas.
+- Baja cobertura.
+- Variabilidad excesiva y cuellos de botella.
+- Dependencia o concentración en personas, equipos o procesos.
+- Problemas de calidad y gobierno de datos.
+- Productos, componentes o releases que requieren atención.
+
+Para cada riesgo incluye probabilidad cualitativa, impacto, urgencia, evidencia, responsable sugerido y mitigación.
+
+Ordena oportunidades por impacto esperado, esfuerzo estimado, confianza y tiempo para obtener valor. Declara cuándo impacto o esfuerzo sean estimaciones cualitativas.
+
+=== 15. PLAN DE ACCIÓN PRIORIZADO ===
+
+Genera una tabla con:
+
+- Acción.
+- Insight o riesgo de origen.
+- Resultado esperado.
+- Prioridad.
+- Impacto y esfuerzo estimados.
+- Responsable sugerido.
+- Plazo.
+- Indicador.
+- Línea base.
+- Meta recomendada.
+- Dependencias.
+- Evidencia de cierre.
+
+Diferencia acciones inmediatas, de corto plazo y de mediano plazo.
+
+=== CRITERIO DE SALIDA DE LA FASE 2 ===
+
+La FASE 2 termina solo cuando:
+
+- Cada análisis se vincula con una pregunta y un hallazgo de FASE 1.
+- Cada insight cumple la estructura obligatoria.
+- Las métricas mantienen las definiciones del Contrato Analítico.
+- Todos los cálculos relevantes están reconciliados.
+- Los riesgos y oportunidades están priorizados.
+- Existe un plan de acción medible.
+
+======================================================================
+=== FASE 3 — ANÁLISIS PARTICULAR SOLICITADO ===
+======================================================================
+
+=== OBJETIVO DE LA FASE 3 ===
+
+Responder, uno por uno, los requerimientos de "C:\Practica\zCodex\SB_Insights\03_Info_Complementaria\Analisis_Particulares.txt" con trazabilidad completa hacia las FASES 1 y 2.
+
+=== 16. MATRIZ DE RESPUESTAS PARTICULARES ===
+
+Para cada solicitud genera:
+
+- ID y texto de la solicitud.
+- Interpretación operacional.
+- Datos y campos requeridos.
+- Disponibilidad y cobertura.
+- Método y fórmula.
+- Población, filtros y período.
+- Resultado.
+- HECHO, INFERENCIA y RECOMENDACIÓN.
+- Riesgo u oportunidad.
+- Limitaciones.
+- Nivel de confianza.
+- Referencia a evidencia de FASE 1 o FASE 2.
+
+No reformules silenciosamente una solicitud ambigua. Declara la interpretación adoptada y las alternativas posibles.
+
+Si el requerimiento:
+
+- Ya fue resuelto en FASE 2, referencia y adapta el resultado sin recalcular con otra definición.
+- Requiere un cruce nuevo, aplica las mismas reglas de rigor y validación de FASE 2.
+- No está soportado por los datos, marca "No disponible" e indica exactamente qué información falta.
+- Contradice una definición validada, conserva el Contrato Analítico y explica la incompatibilidad.
+
+=== CRITERIO DE SALIDA DE LA FASE 3 ===
+
+La FASE 3 termina cuando cada requerimiento está respondido, referenciado como ya resuelto o marcado "No disponible" con causa y datos faltantes.
+
+======================================================================
+=== CONCLUSIÓN Y RESUMEN EJECUTIVO ===
+======================================================================
+
+=== 17. REPORTE DE CONCLUSIÓN ===
+
+Integra:
+
+- Estado general del proceso de QA y de la confiabilidad del dataset.
+- Principales patrones y tendencias.
+- Riesgo principal.
+- Oportunidad principal.
+- Decisión inmediata recomendada.
+- Plan de acción priorizado.
+- Información adicional necesaria.
+- Advertencias para interpretar los resultados.
+
+=== 18. RESUMEN EJECUTIVO ===
+
+El resumen ejecutivo debe construirse al finalizar las tres fases y no superar 2 páginas. Incluye:
+
+- Contexto y alcance.
+- Máximo de 5 insights más accionables.
+- Evidencia esencial.
+- Riesgo u oportunidad.
+- Decisión sugerida.
+- Prioridad.
+- Próximas acciones.
+
+La presentación ejecutiva debe contar una historia orientada a decisiones y no reproducir todo el reporte. Incluye fuente, período y base de cálculo en cada gráfico.
+
+=== REGLAS DE RIGOR ANALÍTICO ===
+
+- No inventes ni completes datos ausentes.
+- No asumas el significado de encabezados ambiguos.
+- No atribuyas causalidad a una asociación.
+- Explicita numerador, denominador, fórmula, período y unidad.
+- Separa volumen absoluto de tasa relativa.
+- Controla doble conteo en el archivo de datos de la carpeta "C:\Practica\zCodex\SB_Insights\02_Datos".
+- Compara grupos considerando exposición, volumen y cobertura.
+- Identifica cambios de taxonomía o proceso a lo largo del tiempo.
+- Señala períodos incompletos y muestras pequeñas.
+- No publiques datos personales innecesarios; usa roles o identificadores minimizados cuando sea suficiente.
+- Mantén trazabilidad desde cada cifra hasta campos, filtros y reglas.
+- Usa "No disponible" cuando la evidencia sea insuficiente.
+- No corrijas datos silenciosamente.
+- No confundas productividad con actividad ni calidad con volumen.
+- No fijes metas como si fueran datos observados.
+- Verifica cálculos, filtros, tablas y gráficos antes de finalizar.
+
+=== CRITERIOS PARA GRÁFICOS ===
+
+- Usa barras para comparaciones categóricas y líneas para tendencias temporales.
+- Evita gráficos circulares con muchas categorías.
+- No grafiques métricas con denominador, período o cobertura inciertos.
+- Incluye título orientado al hallazgo, unidad, período, fuente, base de cálculo y tamaño de muestra.
+- Usa escalas no engañosas y orden lógico.
+- No incluyas un gráfico si no contribuye a una decisión.
+
+=== GLOSARIO ISTQB Y DE NEGOCIO ===
+
+Incluye al final de cada reporte un glosario breve de los términos técnicos efectivamente utilizados. No fuerces equivalencias ISTQB cuando los campos en el archivo de datos de la carpeta "C:\Practica\zCodex\SB_Insights\02_Datos" representen conceptos internos distintos. Documenta la correspondencia entre vocabulario del dataset y vocabulario de QA.
+
+=== VERIFICACIÓN FINAL OBLIGATORIA ===
+
+Antes de terminar confirma internamente:
+
+- Las tres fases se ejecutaron en orden o la FASE 3 quedó justificadamente "No ejecutable".
+- La FASE 1 define granularidad, calidad, diccionario, Contrato Analítico y matriz de hallazgos.
+- Cada análisis de FASE 2 proviene de una pregunta trazable.
+- Cada insight contiene evidencia, interpretación, impacto, decisión, limitaciones y confianza.
+- Cada solicitud de FASE 3 tiene una respuesta o causa explícita de no disponibilidad.
+- Totales, subtotales, tasas y denominadores están reconciliados.
+- No hay doble conteo injustificado.
+- Todos los entregables usan las mismas definiciones y cifras.
+- El resumen ejecutivo no supera 2 páginas.
+- Los documentos y la presentación se abren correctamente.
+- Todos los archivos se crearon dentro de las carpetas autorizadas.
+
+=== CONDICIÓN DE FINALIZACIÓN ===
+
+Finaliza únicamente después de verificar los entregables. Informa de forma concisa:
+
+- Ruta de la carpeta de resultados.
+- Archivos generados.
+- Estado de cada fase.
+- Validaciones no aprobadas.
+- Limitaciones críticas.
+
+

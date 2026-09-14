@@ -48,6 +48,7 @@ jobs:
       - name: Instalar dependencias de Python
         run: |
           python -m pip install --upgrade pip
+          pip install openpyxl requests
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Extraer Issue Key y Parámetros de Jira
@@ -143,34 +144,94 @@ jobs:
           echo "$FILTRO_TEXT" > 08_Registros_a_Procesar/Registros_a_Procesar.txt
           echo "Archivo 08_Registros_a_Procesar/Registros_a_Procesar.txt actualizado con éxito."
 
-      - name: Descargar Excel adjunto desde la tarjeta de Jira
+      - name: Obtener dataset desde Jira
         run: |
-          echo "Buscando adjuntos en la tarjeta ${{ env.ISSUE_KEY }}..."
-          
-          ISSUE_DATA=$(curl --silent --request GET \
-            --url "${{ env.JIRA_URL }}/rest/api/3/issue/${{ env.ISSUE_KEY }}" \
-            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            --header "Accept: application/json")
-
-          EXCEL_URL=$(echo "$ISSUE_DATA" | jq -r '.fields.attachment[]? | select(.filename | test("\\.(xlsx|xls)$"; "i")) | .content' | head -n 1)
-          EXCEL_NAME=$(echo "$ISSUE_DATA" | jq -r '.fields.attachment[]? | select(.filename | test("\\.(xlsx|xls)$"; "i")) | .filename' | head -n 1)
-
-          if [ -z "$EXCEL_URL" ] || [ "$EXCEL_URL" == "null" ]; then
-            echo "ERROR: No se encontró ningún archivo Excel (.xlsx o .xls) adjunto en la tarjeta ${{ env.ISSUE_KEY }}."
-            echo "Respuesta de Jira: $ISSUE_DATA"
-            exit 1
-          fi
-
-          echo "Excel encontrado: $EXCEL_NAME"
-          echo "Descargando desde: $EXCEL_URL"
-
           mkdir -p 02_Datos
-          curl --silent --location --request GET \
-            --url "$EXCEL_URL" \
-            --user "${{ env.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
-            --output "02_Datos/$EXCEL_NAME"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import requests
+          from openpyxl import Workbook
 
-          echo "Archivo 02_Datos/$EXCEL_NAME descargado correctamente."
+          base_url = os.environ["JIRA_URL"].rstrip("/")
+          email = os.environ["JIRA_EMAIL"]
+          token = os.environ["JIRA_API_TOKEN"]
+          issue_key = os.environ["ISSUE_KEY"]
+          auth = (email, token)
+          headers = {"Accept": "application/json"}
+
+          issue_response = requests.get(
+              f"{base_url}/rest/api/3/issue/{issue_key}?fields=attachment",
+              auth=auth,
+              headers=headers,
+              timeout=30,
+          )
+          issue_response.raise_for_status()
+          issue = issue_response.json()
+          attachments = issue.get("fields", {}).get("attachment", [])
+          excel = next(
+              (item for item in attachments if item.get("filename", "").lower().endswith((".xlsx", ".xls"))),
+              None,
+          )
+
+          if excel:
+              output = Path("02_Datos") / excel["filename"]
+              response = requests.get(excel["content"], auth=auth, timeout=60)
+              response.raise_for_status()
+              output.write_bytes(response.content)
+              print(f"Excel adjunto descargado: {output}")
+              raise SystemExit(0)
+
+          print("No hay Excel adjunto; exportando incidencias del proyecto TATC.")
+          all_issues = []
+          next_page_token = None
+          while True:
+              payload = {
+                  "jql": 'project = "TATC" ORDER BY created ASC',
+                  "maxResults": 100,
+                  "fields": ["summary", "status", "issuetype", "priority", "created", "updated", "assignee", "reporter"],
+              }
+              if next_page_token:
+                  payload["nextPageToken"] = next_page_token
+              response = requests.post(
+                  f"{base_url}/rest/api/3/search/jql",
+                  auth=auth,
+                  headers={**headers, "Content-Type": "application/json"},
+                  json=payload,
+                  timeout=60,
+              )
+              response.raise_for_status()
+              page = response.json()
+              issues = page.get("issues", [])
+              all_issues.extend(issues)
+              next_page_token = page.get("nextPageToken")
+              if not next_page_token or not issues:
+                  break
+
+          workbook = Workbook()
+          sheet = workbook.active
+          sheet.title = "Resultados_Jira"
+          columns = ["Clave", "Resumen", "Tipo", "Estado", "Prioridad", "Asignado", "Reportador", "Creado", "Actualizado"]
+          sheet.append(columns)
+          for item in all_issues:
+              fields = item.get("fields", {})
+              sheet.append([
+                  item.get("key", ""),
+                  fields.get("summary", ""),
+                  (fields.get("issuetype") or {}).get("name", ""),
+                  (fields.get("status") or {}).get("name", ""),
+                  (fields.get("priority") or {}).get("name", ""),
+                  (fields.get("assignee") or {}).get("displayName", ""),
+                  (fields.get("reporter") or {}).get("displayName", ""),
+                  fields.get("created", ""),
+                  fields.get("updated", ""),
+              ])
+          output = Path("02_Datos/Jira_Data.xlsx")
+          workbook.save(output)
+          print(f"Dataset Jira generado: {output} ({len(all_issues)} incidencias)")
+          PY
+        env:
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
 
       - name: Ejecutar Agente Codex CLI
         run: |
