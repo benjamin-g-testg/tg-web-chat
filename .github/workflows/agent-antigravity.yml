@@ -34,7 +34,14 @@ jobs:
 
       - name: Instalar Antigravity CLI globalmente
         run: |
-          npm install -g @antigravity/cli || echo "Paquete Antigravity CLI configurado"
+          curl -fsSL https://antigravity.google/cli/install.sh | bash
+          export PATH="$HOME/.local/bin:$PATH"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          if ! command -v agy >/dev/null 2>&1; then
+            echo "ERROR: El instalador oficial no dejó disponible el comando agy."
+            exit 1
+          fi
+          agy --version
 
       - name: Configurar Python e instalar librerías de formato
         uses: actions/setup-python@v5
@@ -230,6 +237,7 @@ jobs:
 
       - name: Ejecutar Agente Antigravity CLI y Empaquetar Entregables
         run: |
+          set -o pipefail
           TIMESTAMP=$(date +'%Y-%m-%d_%H%M%S')
           OUTPUT_DIR="04_Resultado_del_Analisis/${TIMESTAMP}"
           LOG_FILE="05_Logs/${TIMESTAMP}.log"
@@ -250,7 +258,7 @@ jobs:
           1. CRITERIO DE INTERPRETACIÓN DEL AGENTE: Explicación clara en lenguaje natural de cómo entendió el agente el filtro recibido para evaluar los datos.
           2. RESUMEN EJECUTIVO: Métricas y hallazgos clave de las 3 fases."
 
-          antigravity run --prompt "$INSTRUCCION" 2>&1 | tee "$LOG_FILE" || echo "Ejecución Antigravity completada"
+          agy --prompt "$INSTRUCCION" 2>&1 | tee "$LOG_FILE"
           RESULTADO=${PIPESTATUS[0]}
 
           ZIP_NAME="ZIP_Antigravity_${TIMESTAMP}.zip"
