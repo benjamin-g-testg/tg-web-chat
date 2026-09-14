@@ -260,7 +260,7 @@ jobs:
           1. CRITERIO DE INTERPRETACIÓN DEL AGENTE: Explicación clara en lenguaje natural de cómo entendió el agente el filtro recibido para evaluar los datos.
           2. RESUMEN EJECUTIVO: Métricas y hallazgos clave de las 3 fases."
 
-          agy --prompt "$INSTRUCCION" 2>&1 | tee "$LOG_FILE"
+          agy --model gemini-3.8-flash-low --prompt "$INSTRUCCION" 2>&1 | tee "$LOG_FILE"
           RESULTADO=${PIPESTATUS[0]}
 
           ZIP_NAME="ZIP_Antigravity_${TIMESTAMP}.zip"
