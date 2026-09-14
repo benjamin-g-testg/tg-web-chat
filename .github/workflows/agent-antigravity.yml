@@ -68,7 +68,7 @@ jobs:
           
           CLEAN_KEY=$(echo "$RAW_KEY" | tr -d '\r\n\t ' | grep -oE '[A-Za-z0-9]+-[0-9]+' | head -n 1)
           CLEAN_KEY=$(echo "$CLEAN_KEY" | sed -E 's/^([A-Za-z][A-Za-z0-9_]*-)0*([0-9]+)$/\1\2/')
-          CLEAN_URL=$(echo "$RAW_URL" | sed -E 's/.*(https?:\/\/[^]" \)]+).*/\1/' | sed 's/\/$//' | tr -d '\r\n\t ')
+          CLEAN_URL=$(echo "$RAW_URL" | tr -d '\r\n\t ' | sed -E 's#^(https?://[^/]+).*$#\1#')
           CLEAN_EMAIL=$(echo "$RAW_EMAIL" | tr -d '\r\n\t ')
 
           echo "ISSUE_KEY=$CLEAN_KEY" >> $GITHUB_ENV

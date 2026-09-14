@@ -61,6 +61,7 @@ jobs:
             JIRA_URL="${{ github.event.inputs.jira_base_url }}"
             JIRA_EMAIL="${{ github.event.inputs.jira_email }}"
           fi
+          JIRA_URL=$(echo "$JIRA_URL" | tr -d '\r\n\t ' | sed -E 's#^(https?://[^/]+).*$#\1#')
 
           if [ -z "$JIRA_URL" ] || [ -z "$JIRA_EMAIL" ]; then
             echo "ERROR: Debes informar jira_base_url y jira_email."
